@@ -46,7 +46,7 @@ async fn main() -> std::io::Result<()> {
             .service(modules::routes::create)
             .service(modules::routes::delete)
     })
-    .bind(("127.0.0.1", 8010))?
+    .bind(("0.0.0.0", 8010))?
     .run()
     .await
 }
