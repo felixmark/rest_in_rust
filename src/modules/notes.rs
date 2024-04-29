@@ -1,16 +1,13 @@
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use serde::{Serialize, Deserialize};
-use diesel::{ExpressionMethods, Insertable, Queryable, RunQueryDsl};
-use diesel::query_dsl::methods::{FilterDsl, LimitDsl, OrderDsl};
+use diesel::{Insertable, Queryable};
 use uuid::Uuid;
 use diesel::result::Error;
-
-use crate::DBPooledConnection;
-use crate::response::Response;
-
-pub type Notes = Response<Note>;
-
-use super::schema::notes;
+use crate::modules::types::{DBPooledConnection, Notes};
+use crate::db::schema::notes;
+use crate::diesel::ExpressionMethods;
+use crate::diesel::RunQueryDsl;
+use crate::diesel::QueryDsl;
 
 
 // ===================================================================
@@ -86,7 +83,7 @@ impl NoteRequest {
 // Other functions
 // ===================================================================
 pub fn list_notes(total_notes: i64, conn: &mut DBPooledConnection) -> Result<Notes, Error> {
-    use crate::schema::notes::dsl::*;
+    use crate::db::schema::notes::dsl::*;
     let _tweets = match notes
         .order(timestamp.desc())
         .limit(total_notes)
@@ -105,7 +102,7 @@ pub fn list_notes(total_notes: i64, conn: &mut DBPooledConnection) -> Result<Not
 }
 
 pub fn find_note(_id: Uuid, conn: &mut DBPooledConnection) -> Result<Note, Error> {
-    use crate::schema::notes::dsl::*;
+    use crate::db::schema::notes::dsl::*;
 
     let res = notes.filter(id.eq(_id)).load::<NoteDB>(conn);
     match res {
@@ -118,14 +115,14 @@ pub fn find_note(_id: Uuid, conn: &mut DBPooledConnection) -> Result<Note, Error
 }
 
 pub fn create_note(note: Note, conn: &mut DBPooledConnection) -> Result<Note, Error> {
-    use crate::schema::notes::dsl::*;
+    use crate::db::schema::notes::dsl::*;
     let note_db_entry = note.to_note_db();
     let _ = diesel::insert_into(notes).values(&note_db_entry).execute(conn);
     Ok(note_db_entry.to_note())
 }
 
 pub fn delete_note(some_id: Uuid, conn: &mut DBPooledConnection) -> Result<(), Error> {
-    use crate::schema::notes::dsl::*;
+    use crate::db::schema::notes::dsl::*;
     let res = diesel::delete(notes.filter(id.eq(some_id))).execute(conn);
     match res {
         Ok(_) => Ok(()),

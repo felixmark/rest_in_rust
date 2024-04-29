@@ -9,18 +9,11 @@ use actix_web::web::Data;
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use r2d2::PooledConnection;
 
-mod constants;
-mod schema;
-mod response;
-mod notes;
-mod routes;
+mod modules;
+mod db;
 
-use crate::constants::SEPARATOR;
-
-pub type DBPool = Pool<ConnectionManager<PgConnection>>;
-pub type DBPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
+use crate::modules::constants::SEPARATOR;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -47,11 +40,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(wrapped_pool.clone())
             .wrap(middleware::Logger::default())
-            .service(routes::index)
-            .service(routes::list)
-            .service(routes::get)
-            .service(routes::create)
-            .service(routes::delete)
+            .service(modules::routes::index)
+            .service(modules::routes::list)
+            .service(modules::routes::get)
+            .service(modules::routes::create)
+            .service(modules::routes::delete)
     })
     .bind(("127.0.0.1", 8010))?
     .run()

@@ -4,9 +4,9 @@ use actix_web::{delete, get, post, web, HttpResponse};
 use actix_web::web::{Data, Json};
 use uuid::Uuid;
 
-use crate::DBPool;
-use crate::constants::{APPLICATION_JSON, CONNECTION_POOL_ERROR};
-use crate::notes::{list_notes, find_note, create_note, delete_note, NoteRequest};
+use crate::modules::types::DBPool;
+use crate::modules::constants::{APPLICATION_JSON, CONNECTION_POOL_ERROR};
+use crate::modules::notes::{list_notes, find_note, create_note, delete_note, NoteRequest};
 
 #[get("/")]
 async fn index() -> HttpResponse {
