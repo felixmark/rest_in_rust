@@ -14,7 +14,7 @@ use crate::diesel::QueryDsl;
 // NoteDB struct (struct for Diesel ORM)
 // ===================================================================
 #[derive(Queryable, Insertable)]
-#[table_name = "notes"]
+#[diesel(table_name = notes)]
 pub struct NoteDB {
     pub id: Uuid,
     pub timestamp: NaiveDateTime,

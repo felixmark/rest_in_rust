@@ -16,7 +16,7 @@ services:
       POSTGRES_DB: rir
     expose:
       - "5432"
-    volumes: 
+    volumes:
       - db:/var/lib/postgresql/data
 volumes:
   db:
