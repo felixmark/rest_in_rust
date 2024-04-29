@@ -15,6 +15,8 @@ mod db;
 
 use crate::modules::constants::SEPARATOR;
 
+// For adding authentication see https://stackoverflow.com/questions/62269278/how-can-i-make-protected-routes-in-actix-web
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Load .env
