@@ -17,7 +17,7 @@ diesel migration run
 Start the PostgreSQL Database
 
 ```sh
-docker compose up -d
+docker compose up -d db
 ```
 
 ### Let's go!
