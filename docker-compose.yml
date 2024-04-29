@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: felix
       POSTGRES_PASSWORD: abccba123321
-      POSTGRES_DB: notes
+      POSTGRES_DB: rir
     ports:
       - "5432:5432"
     expose:

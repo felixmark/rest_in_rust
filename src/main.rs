@@ -1,41 +1,42 @@
-#[macro_use]
 extern crate actix_web;
 extern crate diesel;
 
-use actix_web::{middleware, App, HttpResponse, HttpServer, Responder};
+use std::env;
+use dotenvy::dotenv;
+use log::info;
+use actix_web::{middleware, App, HttpServer};
 use actix_web::web::Data;
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use r2d2::PooledConnection;
-use log::LevelFilter;
-use log::info;
+
 mod constants;
 mod schema;
 mod response;
 mod notes;
+mod routes;
+
+use crate::constants::SEPARATOR;
 
 pub type DBPool = Pool<ConnectionManager<PgConnection>>;
 pub type DBPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
 
-#[get("/")]
-async fn index() -> impl Responder {
-    println!("HELLO CALLED.");
-    HttpResponse::Ok().body("Oh hello there!")
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Load .env
+    let _ = dotenv();
+
     // Set up logging
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
-    //simple_logging::log_to_file("test.log", LevelFilter::Info).expect("Could not create logger.");
-    //simple_logging::log_to_stderr(LevelFilter::Debug);
     
-    info!("R.I.R. started.");
+    info!("{}", SEPARATOR);
+    info!("R.I.R. started");
+    info!("{}", SEPARATOR);
 
-    // set up database connection pool
-    let database_url = constants::DATABASE_URL;
+    // Get Database URL from .env file and set up database connection pool
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     let pool = Pool::builder()
         .build(manager)
@@ -46,11 +47,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(wrapped_pool.clone())
             .wrap(middleware::Logger::default())
-            .service(index)
-            .service(notes::list)
-            .service(notes::get)
-            .service(notes::create)
-            .service(notes::delete)
+            .service(routes::index)
+            .service(routes::list)
+            .service(routes::get)
+            .service(routes::create)
+            .service(routes::delete)
     })
     .bind(("127.0.0.1", 8010))?
     .run()

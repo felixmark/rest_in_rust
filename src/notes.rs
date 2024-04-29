@@ -1,22 +1,43 @@
-use actix_web::{delete, get, post, web, HttpResponse};
-use actix_web::web::{Data, Json, Path};
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
-use log::info;
 use serde::{Serialize, Deserialize};
 use diesel::{ExpressionMethods, Insertable, Queryable, RunQueryDsl};
 use diesel::query_dsl::methods::{FilterDsl, LimitDsl, OrderDsl};
 use uuid::Uuid;
-use std::str::FromStr;
 use diesel::result::Error;
 
-use crate::{DBPool, DBPooledConnection};
+use crate::DBPooledConnection;
 use crate::response::Response;
-use crate::constants::{APPLICATION_JSON, CONNECTION_POOL_ERROR};
 
 pub type Notes = Response<Note>;
 
 use super::schema::notes;
 
+
+// ===================================================================
+// NoteDB struct (struct for Diesel ORM)
+// ===================================================================
+#[derive(Queryable, Insertable)]
+#[table_name = "notes"]
+pub struct NoteDB {
+    pub id: Uuid,
+    pub timestamp: NaiveDateTime,
+    pub content: String,
+}
+
+impl NoteDB {
+    fn to_note(&self) -> Note {
+        Note {
+            id: self.id.to_string(),
+            timestamp: Utc.from_utc_datetime(&self.timestamp),
+            content: self.content.clone(),
+        }
+    }
+}
+
+
+// ===================================================================
+// Note struct
+// ===================================================================
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Note {
     pub id: String,
@@ -43,7 +64,9 @@ impl Note {
 }
 
 
-
+// ===================================================================
+// NoteRequest struct (used for creating a note from a request)
+// ===================================================================
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoteRequest {
     pub content: Option<String>,
@@ -59,26 +82,10 @@ impl NoteRequest {
 }
 
 
-
-#[derive(Queryable, Insertable)]
-#[table_name = "notes"]
-pub struct NoteDB {
-    pub id: Uuid,
-    pub timestamp: NaiveDateTime,
-    pub content: String,
-}
-
-impl NoteDB {
-    fn to_note(&self) -> Note {
-        Note {
-            id: self.id.to_string(),
-            timestamp: Utc.from_utc_datetime(&self.timestamp),
-            content: self.content.clone(),
-        }
-    }
-}
-
-fn list_notes(total_notes: i64, conn: &mut DBPooledConnection) -> Result<Notes, Error> {
+// ===================================================================
+// Other functions
+// ===================================================================
+pub fn list_notes(total_notes: i64, conn: &mut DBPooledConnection) -> Result<Notes, Error> {
     use crate::schema::notes::dsl::*;
     let _tweets = match notes
         .order(timestamp.desc())
@@ -97,63 +104,31 @@ fn list_notes(total_notes: i64, conn: &mut DBPooledConnection) -> Result<Notes, 
     })
 }
 
-#[get("/notes")]
-pub async fn list(pool: Data<DBPool>) -> HttpResponse {
-    /* Tested and working. */
-    let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
-    let mut _notes = web::block(move || list_notes(50, &mut conn)).await.unwrap();
-    match _notes {
-        Ok(_) => HttpResponse::Ok()
-            .content_type(APPLICATION_JSON)
-            .json(_notes.ok()),
-        _ => HttpResponse::Ok()
-            .content_type(APPLICATION_JSON)
-            .json(())
+pub fn find_note(_id: Uuid, conn: &mut DBPooledConnection) -> Result<Note, Error> {
+    use crate::schema::notes::dsl::*;
+
+    let res = notes.filter(id.eq(_id)).load::<NoteDB>(conn);
+    match res {
+        Ok(notes_db) => match notes_db.first() {
+            Some(note_db) => Ok(note_db.to_note()),
+            _ => Err(Error::NotFound),
+        },
+        Err(err) => Err(err),
     }
 }
 
-fn create_note(note: Note, conn: &mut DBPooledConnection) -> Result<Note, Error> {
+pub fn create_note(note: Note, conn: &mut DBPooledConnection) -> Result<Note, Error> {
     use crate::schema::notes::dsl::*;
     let note_db_entry = note.to_note_db();
     let _ = diesel::insert_into(notes).values(&note_db_entry).execute(conn);
     Ok(note_db_entry.to_note())
 }
 
-#[post("/notes")]
-pub async fn create(note_req: Json<NoteRequest>, pool: Data<DBPool>) -> HttpResponse {
-    /* Tested and working. */
-    let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
-    let note = web::block(move || create_note(note_req.to_note().unwrap(), &mut conn)).await;
-    match note {
-        Ok(note) => HttpResponse::Created()
-            .content_type(APPLICATION_JSON)
-            .json(note.ok()),
-        _ => HttpResponse::NoContent().await.unwrap(),
+pub fn delete_note(some_id: Uuid, conn: &mut DBPooledConnection) -> Result<(), Error> {
+    use crate::schema::notes::dsl::*;
+    let res = diesel::delete(notes.filter(id.eq(some_id))).execute(conn);
+    match res {
+        Ok(_) => Ok(()),
+        Err(err) => Err(err),
     }
-}
-
-// find a note by its id
-#[get("/notes/{id}")]
-pub async fn get(path: web::Path<String>) -> HttpResponse {
-    let found_note: Option<Note> = Some(
-        Note { id: "10".to_string(), timestamp: Utc::now(), content: path.to_string()}
-    );
-    match found_note {
-        Some(note) => HttpResponse::Ok()
-            .content_type(APPLICATION_JSON)
-            .json(note),
-        None => HttpResponse::NoContent()
-            .content_type(APPLICATION_JSON)
-            .await
-            .unwrap(),
-    }
-}
-
-// delete a note by its id
-#[delete("/notes/{id}")]
-pub async fn delete(path: web::Path<(String,)>) -> HttpResponse {
-    HttpResponse::NoContent()
-        .content_type(APPLICATION_JSON)
-        .await
-        .unwrap()
 }
